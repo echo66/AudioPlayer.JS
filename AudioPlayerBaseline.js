@@ -1,5 +1,5 @@
 /*
- * params: {id, bufferSize (default 2048), sampleRate (default 44100), audioContext (opt)}
+ * params: {id, bufferSize (default 512), sampleRate (default 44100), audioContext (opt)}
  */
 function AudioPlayer(params) {
 	
@@ -10,7 +10,7 @@ function AudioPlayer(params) {
 	var _pitch = 0;
 	var _canPlay = false;
 	var _isConnected = false;
-	var _bufferSize = (params.bufferSize!=undefined)? params.bufferSize : 2048;
+	var _bufferSize = (params.bufferSize!=undefined)? params.bufferSize : 512;
 	var _sampleRate = (params.sampleRate!=undefined)? params.sampleRate : 44100;
 	var _audioContext = (params.audioContext)? params.audioContext : new AudioContext();
 	var _audioElement = new Audio();
@@ -19,6 +19,8 @@ function AudioPlayer(params) {
 	_pitchShifter.setPitchOffset(_pitch);
 	var _auxNode = _audioContext.createScriptProcessor(_bufferSize, 2, 2);
 	var _destination;
+	var _beats;
+	var _bpm;
 	var _callbacks = {};
 
 	this.get_audio = function () { return _audioElement; }
@@ -115,6 +117,8 @@ function AudioPlayer(params) {
 		_auxNode = undefined;
 		_destination = undefined;
 		_callbacks = undefined;
+		_beats = undefined; 
+		_bpm = undefined;
 	}
 
 	this.play = function() {
@@ -147,12 +151,27 @@ function AudioPlayer(params) {
 		}
 	}
 
+	// params: {src|audioElement, beats|bpm}
 	this.load = function(params) {
-		if (params.src)
+		if (params.beats && Array.isArray(params.beats)) {
+			_beats = params.beats.sort();
+			for (var i=0; i<_beats.length-1; i++) {
+				var start = _beats[i];
+				var end   = _beats[i];
+				var beatPeriod = end - start;
+				var beatBPM = 60 / beatPeriod;
+				_beats[i] = [start, end, beatBPM];
+			}
+		} else if (params.bpm!=undefined && (typeof params.bpm == "string" || typeof params.bpm == "number")) {
+			_bpm = params.bpm;
+		} else 
+			throw "Invalid parameters";
+
+		if (params.src) {
 			_canPlay = false;
 			_loopActive = false;
 			_audioElement.src = params.src;
-		else if (params.audioElement) {
+		} else if (params.audioElement) {
 			_canPlay = false;
 			_loopActive = false;
 			_mediaElementSource.disconnect();
@@ -162,7 +181,8 @@ function AudioPlayer(params) {
 			_mediaElementSource.connect(_auxNode);
 		} else 
 			throw "Invalid parameters"
-		_emit("load", {id: _id, src: _audioElement.src});
+
+		_emit("load", {id: _id});
 	}
 
 	this.loop = function(params) {
