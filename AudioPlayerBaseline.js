@@ -3,7 +3,6 @@
  */
 function AudioPlayer(params) {
 	
-	var that = this;
 	var _id = params.id;
 	var _loopStart = _loopEnd = 0;
 	var _loopActive = false;
@@ -15,12 +14,6 @@ function AudioPlayer(params) {
 	var _sampleRate = (params.sampleRate!=undefined)? params.sampleRate : 44100;
 	var _audioContext = (params.audioContext)? params.audioContext : new AudioContext();
 	var _audioElement = new Audio();
-	// _audioElement.addEventListener("timeupdate", function(e) {
-	// 	if (_loopActive && _audioElement.currentTime > _loopEnd) {
-	// 		_audioElement.currentTime = _loopStart;
-	// 		_loopItCount += 1;
-	// 	}
-	// })
 	var _mediaElementSource = _audioContext.createMediaElementSource(_audioElement);
 	var _pitchShifter = new Jungle( _audioContext );
 	_pitchShifter.setPitchOffset(_pitch);
@@ -99,6 +92,31 @@ function AudioPlayer(params) {
 		}
 	});
 
+	this.clear = function() {
+		_audioElement.pause();
+		_audioElement.src = "";
+		_mediaElementSource.disconnect();
+		_pitchShifter.disconnect();
+		_auxNode.disconnect();
+
+		_id = undefined;
+		_loopStart = _loopEnd = undefined;
+		_loopActive = undefined;
+		_loopItCount = undefined;
+		_pitch = undefined;
+		_canPlay = undefined;
+		_isConnected = undefined;
+		_bufferSize = undefined;
+		_sampleRate = undefined;
+		_audioContext = undefined;
+		_audioElement = undefined;
+		_mediaElementSource = undefined;
+		_pitchShifter = undefined;
+		_auxNode = undefined;
+		_destination = undefined;
+		_callbacks = undefined;
+	}
+
 	this.play = function() {
 		if (!_canPlay && _isConnected && this.isLoaded) {
 			_canPlay = true;
@@ -130,7 +148,20 @@ function AudioPlayer(params) {
 	}
 
 	this.load = function(params) {
-		_audioElement.src = params.src;
+		if (params.src)
+			_canPlay = false;
+			_loopActive = false;
+			_audioElement.src = params.src;
+		else if (params.audioElement) {
+			_canPlay = false;
+			_loopActive = false;
+			_mediaElementSource.disconnect();
+			_audioElement.src = "";
+			_audioElement = params.audioElement;
+			_mediaElementSource = _audioContext.createMediaElementSource(_audioElement);
+			_mediaElementSource.connect(_auxNode);
+		} else 
+			throw "Invalid parameters"
 		_emit("load", {id: _id, src: _audioElement.src});
 	}
 
