@@ -27,7 +27,7 @@ function AudioPlayer(params) {
 
 	_auxNode.onaudioprocess = function (e) {
 		_audioElement.pause();
-		if (_canPlay) {
+		if (_canPlay && _isConnected) {
 
 			e.outputBuffer.getChannelData(0).set(e.inputBuffer.getChannelData(0));
 			e.outputBuffer.getChannelData(1).set(e.inputBuffer.getChannelData(1));
@@ -57,8 +57,30 @@ function AudioPlayer(params) {
 				_emit("set-time", {id: _id, time: _audioElement.currentTime});
 			}
 		}, 
+		'units' : {
+			get: function() {
+				// TODO
+			}
+		}
 		'duration' : {
 			get: function() { return _audioElement.duration; }
+		}, 
+		'bpm' : {
+			get: function() {
+				if (_bpm!=undefined) 
+					return _bpm;
+				else if (_beats) {
+					// TODO
+				}
+			}
+		},
+		'syncToRef' : {
+			get: function() {
+				// TODO
+			}, 
+			set: function(sync) {
+				// TODO
+			}
 		}, 
 		'stretch' : {
 			get: function() { return 1/_audioElement.playbackRate; },
@@ -162,6 +184,12 @@ function AudioPlayer(params) {
 				var beatBPM = 60 / beatPeriod;
 				_beats[i] = [start, end, beatBPM];
 			}
+			i = _beats.length-1;
+			var start = _beats[i];
+			var end   = _beats[i];
+			var beatPeriod = end - start;
+			var beatBPM = 60 / beatPeriod;
+			_beats[i] = [start, end, beatBPM];
 		} else if (params.bpm!=undefined && (typeof params.bpm == "string" || typeof params.bpm == "number")) {
 			_bpm = params.bpm;
 		} else 
@@ -202,6 +230,8 @@ function AudioPlayer(params) {
 	this.unload = function() {
 		_canPlay = false;
 		_audioElement.src = "";
+		_beats = undefined;
+		_bpm = undefined;
 		_emit("unload", {id: _id});
 	}
 
@@ -220,7 +250,7 @@ function AudioPlayer(params) {
 
 	var _emit = function(evenType, data) {
 		for (var ci in _callbacks[evenType]) 
-		_callbacks[evenType][ci](data);
+			_callbacks[evenType][ci](data);
 	}
 
 	this.on = function(observerID, eventType, callback) {
