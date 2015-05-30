@@ -1,11 +1,12 @@
 /*
- *  params: {id, timer (opt), audioContext, initialBPM (default 120)}
+ *  params: {id, timer (opt), audioContext, initialBPM (opt, default 120), bpmTimeline (opt), units}
  */
 function AudioTrackBaseline(params) {
 
 	if (params.id==undefined) throw "Invalid parameters";
 
 	var _id = params.id;
+	var _eventIdCounter = 0;
 	var _audioContext = params.audioContext;
 	var _audioPlayer  = new AudioPlayer({
 							id: params.id+"-player", 
@@ -21,11 +22,12 @@ function AudioTrackBaseline(params) {
 											audioContext: _audioContext}), 
 				initialBPM: (params.initialBPM!=undefined)? params.initialBPM : 120, 
 				removeCompleted: false,
-				units: "beats"
+				bpmTimeline: params.bpmTimeline || new BPMTimeline(initialBPM), 
+				units: params.units
 			});
 	var _usingOwnTimer = (params.timer)? false : true;
 	var _audioToPlay = {}; // {src: [Audio, beats, count]}
-	var _units = "beats";
+	var _units = params.units;
 
 	Object.defineProperties(this, {
 		'id' : {
@@ -39,8 +41,36 @@ function AudioTrackBaseline(params) {
 		}, 
 		'units' : {
 			get: function() { return _units; }
+		}, 
+		'time' : {
+			get: function() {
+				//TODO
+			}, 
+			set: function(newTime) {
+				//TODO
+			}
+		}, 
+		'volume' : {
+			get: function() {
+				//TODO
+			}, 
+			set: function(volume) {
+				//TODO
+			}
 		}
 	});
+
+	this.start = function() {
+		_scheduler.start();
+	}
+
+	this.stop = function() {
+		// TODO
+	}
+
+	this.pause = function() {
+		// TODO
+	}
 
 	function load_audio(src) {
 		if (_audioPlayer[src])
@@ -62,34 +92,48 @@ function AudioTrackBaseline(params) {
 			throw "Unknown audio reference";
 	}
 	
-	// params: {src, beats, interval: {start, end, units}, start, units}
+	/*
+	 *  params: {
+	 *    src: String, 
+	 *    beats: Array, 
+	 *    interval: { 
+	 *      start: Number, 
+	 *      end: Number, 
+	 *      units: String 
+	 *    }, 
+	 *    start: Number, 
+	 *    units: String
+	 *  }
+	 */
 	this.schedule = function(params) {
 
 		if (params.src==undefined || params.beats==undefined || params.start==undefined)
 			throw "Invalid parameters";
 
-		//TODO
 		load_audio(src);
+
 		_scheduler.add({
+			id: _eventIdCounter++, 
 			start: params.start, 
 			stop: params.end, 
 			startFn: function(time) {
 				_audioPlayer.load({
-					audioElement: _audioPlayer[src], 
+					audioElement: _audioToPlay[src], 
 					beats: params.beats
 				});
 				_audioPlayer.time = params.interval.start
 				_audioPlayer.play();
 			}, 
 			stopFn: function() {
-
+				_audioPlayer.stop();
+				unload_audio(src);
 			}
 		});
 	}
 
 	// params: {id}
 	this.unschedule = function(params) {
-		//TODO
+		_scheduler.remove({id: params.id});
 	}
 
 	this.add_effect = function(params) {
@@ -100,98 +144,28 @@ function AudioTrackBaseline(params) {
 		//TODO
 	}
 
+	this.get_effects = function(params) {
+		//TODO
+	}
+
+	// params: {effectId, {paramId: [instruction, ..., instruction]}, rewrite}
+	// If effectId is equal to "bpm" and this track does not depend on any transport object 
+	// Then change the bpm automation.
+	this.set_automation = function(params) {
+		//TODO
+	}
+
+	// params: {effectId}
+	this.get_automation = function(params) {
+		//TODO
+	}
+
 	this.clear = function() {
 		_id = undefined;
 		_audioPlayer = undefined;
 		_audioContext = undefined;
 		_scheduler = undefined;
 		_usingOwnTimer = undefined;
-	}
-
-
-	/*
-	 *
-	 */
-	function PlayAudioEvent(params) {
-		var _id = params.id;
-
-		var _tolerance = {
-			early: params.tolerance.early, 
-			late : params.tolerance.late
-		};
-
-		var _start = params.start;
-		var _stop   = params.stop;
-
-		var _state = 0;
-		var _STATE_ENUM = {
-			0 : 'NOT_STARTED', 
-			1 : 'RUNNING', 
-			2 : 'STOPPED'
-		};
-
-		var _startFn = params.callbacks.startFn || function(time) {};
-		var _stopFn  = params.callbacks.stopFn;
-		var _resetFn = params.callbacks.resetFn;
-		var _tickFn  = params.callbacks.tickFn;
-
-		var _units = params.units;
-
-		Object.defineProperties(this, {
-			'id': {
-				value: _id, 
-				writable: false
-			},
-
-			'isOneShot' : {
-				get: function() { return !_stopFn; }
-			}, 
-
-			'isResetable' : {
-				get: function() { return _resetFn!=undefined; }
-			},
-
-			'isTickable' : {
-				get: function() { return _tickFn!=undefined; }
-			},
-
-			'startTime'		 : {
-				value: _start, 
-				writable: false
-			},
-
-			'earlyStartTime' : {
-				get: function() { return _start - _tolerance.early; }
-			},
-
-			'lateStartTime'  : {
-				get: function() { return _start + _tolerance.late; }
-			}, 
-
-			'stopTime'       : {
-				value: _stop, 
-				writable: false
-			}, 
-
-			'state'          : {
-				get: function() {
-					return _STATE_ENUM[_state];
-				}
-			},
-
-			'units'          : {
-				value: _units,
-				writable: false
-			}
-		});
-
-		this.start = function(time) { _startFn(time); _state = 1; }
-
-		this.tick  = function(time) { _tickFn(time); }
-
-		this.stop  = function(time) { _stopFn(time); _state = 2; }
-
-		this.reset = function() { _resetFn(); _state = 0; }
 	}
 
 }
