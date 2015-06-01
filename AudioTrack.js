@@ -29,6 +29,15 @@ function AudioTrackBaseline(params) {
 	var _audioToPlay = {}; // {src: [Audio, beats, count]}
 	var _units = params.units;
 
+	var _stereoPannerNode = _audioContext.createStereoPanner();
+	var _gainNode = _audioContext.createGain();
+
+	_audioPlayer.connect(_gainNode);
+	_gainNode.connect(_stereoPannerNode);
+
+	var _lastNode = _stereoPannerNode;
+
+
 	Object.defineProperties(this, {
 		'id' : {
 			get: function() { return _id; }
@@ -44,10 +53,10 @@ function AudioTrackBaseline(params) {
 		}, 
 		'time' : {
 			get: function() {
-				//TODO
+				_scheduler.get_current_time();
 			}, 
 			set: function(newTime) {
-				//TODO
+				_scheduler.set_current_time(newTime);
 			}
 		}, 
 		'volume' : {
@@ -56,6 +65,33 @@ function AudioTrackBaseline(params) {
 			}, 
 			set: function(volume) {
 				//TODO
+				var _volume;
+				if (volume < 0)
+					_volume = 0;
+				else if (volume > 2)
+					_volume = 2;
+				else
+					_volume = volume;
+				_gainNode.gain.value = _volume;
+				// TODO: change the entire automation for this value 
+				// like it would happen in mixmeister.	
+			}
+		}, 
+		'pan' : {
+			get: function() {
+				return _stereoPannerNode.pan.value;
+			}, 
+			set: function(panVal) {
+				var _panVal;
+				if (panVal < -1)
+					_panVal = -1;
+				else if (panVal > 1)
+					_panVal = 1;
+				else 
+					_panVal = panVal;
+				_stereoPannerNode.pan.value = _panVal
+				// TODO: change the entire automation for this value 
+				// like it would happen in mixmeister.
 			}
 		}
 	});
@@ -65,10 +101,14 @@ function AudioTrackBaseline(params) {
 	}
 
 	this.stop = function() {
+		_scheduler.reset();
+		_audioPlayer.stop();
 		// TODO
 	}
 
 	this.pause = function() {
+		_scheduler.pause();
+		_audioPlayer.pause();
 		// TODO
 	}
 
@@ -131,20 +171,35 @@ function AudioTrackBaseline(params) {
 		});
 	}
 
+	this.connect = function(destination) {
+		_lastNode.connect(destination);
+	}
+
+	this.disconnect = function() {
+		_lastNode.disconnect();
+	}
+
 	// params: {id}
 	this.unschedule = function(params) {
 		_scheduler.remove({id: params.id});
 	}
 
+	// params: {connectionSpecification, effectType}
 	this.add_effect = function(params) {
 		//TODO
 	}
 
+	// params: {connectionSpecification, effectId}
 	this.remove_effect = function(params) {
 		//TODO
 	}
 
-	this.get_effects = function(params) {
+	this.get_effects = function() {
+		//TODO
+	}
+
+	// params: {effectId, paramId, value}
+	this.set_parameter = function(params) {
 		//TODO
 	}
 
@@ -152,7 +207,16 @@ function AudioTrackBaseline(params) {
 	// If effectId is equal to "bpm" and this track does not depend on any transport object 
 	// Then change the bpm automation.
 	this.set_automation = function(params) {
-		//TODO
+		var eid = params.effectId;
+		if (eid == "bpm") {
+			// TODO
+		} else if (eid == "panner") {
+			// TODO
+		} else if (eid == "volume") {
+			// TODO
+		} else {
+			// TODO
+		}
 	}
 
 	// params: {effectId}

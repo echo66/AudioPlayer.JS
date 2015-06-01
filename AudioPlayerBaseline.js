@@ -166,8 +166,10 @@ function AudioPlayer(params) {
 	this.stop = function() {
 		if (_canPlay && _isConnected && this.isLoaded) {
 			_canPlay = false;
+			_audioElement.pause();
+			var time = _audioElement.currentTime;
 			_audioElement.currentTime = 0;
-			_emit("stop", {id: _id, time: _audioElement.currentTime});
+			_emit("stop", {id: _id, time: time});
 		} else if (!_isConnected || !this.isLoaded) {
 			throw "Cannot stop playback without connecting or loading the audio player.";
 		}
